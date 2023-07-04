@@ -5,6 +5,10 @@ Joystick or keyboard.
 """
 
 import pygame
+import os
+
+os.environ["SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS"] = "1"
+
 
 from .controller import Controller
 
@@ -53,7 +57,7 @@ class JoystickController(Controller):
 
     def __init__(self, cam, config):
         pygame.init()
-        screen = pygame.display.set_mode((500, 700))
+        screen = pygame.display.set_mode((500, 700),flags=pygame.HIDDEN)
         pygame.display.set_caption("Joy PTZ")
         # this just locks the mouse in the window which isn't
         # really what we want.
@@ -89,8 +93,11 @@ class JoystickController(Controller):
         joystick_count = pygame.joystick.get_count()
         self.log.indent()
         axes_vals = []
+        hats_vals = []
         for i in range(joystick_count):
             axes_vals = []
+            hats_vals = []
+
             joystick = pygame.joystick.Joystick(i)
             joystick.init()
             try:
@@ -117,6 +124,14 @@ class JoystickController(Controller):
             for i in range(axes):
                 axis = joystick.get_axis(i)
                 # clear out noise on return to zero
+                self.log.info("Axis Original Val {} value: {:>6.3f}".format(i, axis))
+                
+                # if axis == -1.000 and i==4:
+                #     axis =0.0
+                    
+                # if axis == -1.000 and i==5:
+                #     axis =0.0
+
                 if abs(axis) < 0.005:
                     axis = 0.0
                 axes_vals.append(axis)
@@ -141,11 +156,16 @@ class JoystickController(Controller):
             # get_axis(). Position is a tuple of int values (x, y).
             for i in range(hats):
                 hat = joystick.get_hat(i)
+             #   self.log.info(hat)
+                hats_vals.append(hat)
+
                 self.log.info("Hat {} value: {}".format(i, str(hat)))
             self.log.unindent()
 
             self.log.unindent()
         if axes_vals:
+            self.log.info("AXES VALS")
+            self.log.info(str(axes_vals))
             # now move the camera accordingly!
             # just take the first three axes as x,y, and zoom
 
@@ -155,7 +175,8 @@ class JoystickController(Controller):
             # and right trigger -1 to be zero and +1 to be -1
             if len(axes_vals) >= 6:
                 # handle cases where there are no triggers without crashing.
-                zoom = -(axes_vals[2] + 1) / 2.0 + (axes_vals[5] + 1) / 2.0
+                # xbox controller trigger RT is 4  LT is 5
+                zoom = -(axes_vals[5] + 1) / 2.0 + (axes_vals[4] + 1) / 2.0
             else:
                 zoom = 0.0
 
@@ -170,6 +191,28 @@ class JoystickController(Controller):
             self._move_vector = move_vector
 
             self._focus = axes_vals[3]
+            
+        if hats_vals:
+            
+            
+            x = []
+            for item in hats_vals:
+                x.extend(item)
+            self.log.info("HAT VALS")
+            self.log.info(str(x))
+
+
+            move_vector = x[:2] + [zoom]
+
+    #         # add a response curve so slight motions are easier to control
+    #         # simply square everything while retaining sign for starters.
+            move_vector = [i * abs(i)/5 for i in move_vector]
+
+    #         # fix vertical axis flipped on my controller
+        #    move_vector[1] *= -1
+            self._move_vector = move_vector
+
+            self._focus = x[1]
 
     def _handle_keyboard_event(self, event):
         if event.type == pygame.KEYDOWN:
@@ -219,9 +262,10 @@ class JoystickController(Controller):
                     self.cam.ir_off()
         elif event.type == pygame.JOYHATMOTION:
             hat = event.value
-            if hat[0] == 1:
-                preset += 1
-                self.cam.goto_preset(preset)
-            elif hat[0] == -1:
-                preset -= 1
-                self.cam.goto_preset(preset)
+            self.log.info(str(hat))
+        #     if hat[0] == 1:
+        #    #     preset += 1
+        #         #self.cam.goto_preset(preset)
+        #     elif hat[0] == -1:
+        #         #preset -= 1
+        #         self.cam.goto_preset(preset)

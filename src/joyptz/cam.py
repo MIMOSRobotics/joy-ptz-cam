@@ -38,6 +38,7 @@ class Camera:
     def init_camera(self, config):
         """Set up the camera."""
 
+
         mycam = ONVIFCamera(
             config["host"],
             config.get("port", 80),
@@ -56,6 +57,7 @@ class Camera:
         request = ptz.create_type("GetConfigurationOptions")
         request.ConfigurationToken = media_profile.PTZConfiguration.token
         ptz_configuration_options = ptz.GetConfigurationOptions(request)
+        #print(ptz_configuration_options)
 
         image = mycam.create_imaging_service()
         request = image.create_type("GetImagingSettings")
@@ -81,18 +83,15 @@ class Camera:
         request = ptz.create_type("ContinuousMove")
         request.ProfileToken = media_profile.token
         token = {"ProfileToken": media_profile.token}
+
         self._token = media_profile.token
         ptz.Stop(token)
+        
+        
         if request.Velocity is None:
-            request.Velocity = ptz.GetStatus(token).Position
-            if not request.Velocity.PanTilt:
-                # call GetStatus again to get a new copy
-                request.Velocity.PanTilt = ptz.GetStatus(token).Position.Zoom
-                request.Velocity.PanTilt.y = 0
-            request.Velocity.PanTilt.space = ranges.URI
-            request.Velocity.Zoom.space = (
-                ptz_configuration_options.Spaces.ContinuousZoomVelocitySpace[0].URI
-            )
+            request.Velocity = ptz.GetStatus(token)
+
+
         self._request = request
         # import ipdb
         # ipdb.set_trace()
@@ -110,10 +109,23 @@ class Camera:
 
         self._active_vector = vector
         x, y, zoom = vector  # assume unit vector
+        print(x,y)
+        s = {'list': {'KEY1': 'One'}}
+        d = {'KEY2': 'Two'}
+        s['list'].update(d)
 
-        self._request.Velocity.PanTilt.x = x * self.XMAX
-        self._request.Velocity.PanTilt.y = y * self.YMAX
-        self._request.Velocity.Zoom.x = zoom
+      #  if(x!=0.0):
+        self._request.Velocity = {'PanTilt': {'x': x * self.XMAX, 'y': y * self.YMAX}}
+        #self._ptz.ContinuousMove(self._request)
+       # else:
+        if(zoom!=0.0):
+            self._request.Velocity = {'Zoom':{'x':zoom}}
+        self._ptz.ContinuousMove(self._request)
+
+
+        # self._request.Velocity.PanTilt.x = x * self.XMAX
+        # self._request.Velocity.PanTilt.y = y * self.YMAX
+        #self._request.Velocity.Zoom.x = zoom
         self._ptz.ContinuousMove(self._request)
 
     def stop(self):

@@ -31,7 +31,7 @@ class Controller:
             else:
                 self.cam.perform_move(self._move_vector)
 
-        if abs(self._focus) > 0.006:
-            self.cam.set_focus_change(self._focus)
-        else:
-            self.cam.set_focus_change(0.0)
+        # if abs(self._focus) > 0.006:
+        #     self.cam.set_focus_change(self._focus)
+        # else:
+        #     self.cam.set_focus_change(0.0)
